@@ -4,11 +4,20 @@ import type { Request, Response } from "express";
 import argon from "argon2"
 const prisma = new PrismaClient().$extends(withAccelerate());
 
-const getallUsers = async (req: Request, res: Response) => {
+const getallUsers = async (req: any, res: Response) => {
+  const {pageSize, page_number, start_idx, end_idx} = req.pagination
   try {
     const users = await prisma.user.findMany({});
+    const sliced_result = users.slice(start_idx, end_idx)
+    const base_url = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`
 
-    res.status(200).json({ success: true, users });
+    const has_next = start_idx + pageSize < users.length
+    const has_prev = page_number > 1
+
+    const next_url = has_next ? `${base_url}?page=${page_number + 1}` : null
+    const prev_url = has_prev ? `${base_url}?page=${page_number - 1}` : null
+
+    res.status(200).json({ success: true, count: users.length, Next: next_url, previous:prev_url, results: sliced_result });
   } catch (error) {
     res.status(500).json({
       error: { error },
